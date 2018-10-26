@@ -1,0 +1,1055 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+           "type": "string",
+           "defaultValue": "[resourceGroup().location]",
+           "metadata": {
+                "description": "Azure region for deployment"
+            }
+        },
+        "sqlUserName": {
+           "type": "string",
+           "metadata": {
+                "description": "Username for access to Azure SQL Server."
+            }
+        },
+        "sqlPassword": {
+           "type": "securestring",
+           "metadata": {
+                "description": "Password for the user to Azure SQL Server."
+            }
+        },
+        "servicePrincipalId":{
+            "type": "string",
+            "metadata": {
+                "description": "Service Principla Appliation Id."
+            }
+        },
+        "servicePrincipalKey":{
+            "type": "securestring",
+            "metadata": {
+                 "description": "Service Principla Appliation Key."
+             }
+         }
+    },
+    "variables": {
+        "openParenthesis": "(",
+        "closeParenthesis": ")",
+        "resourceGroupLen": "[length(resourceGroup().name)]",
+        "charToTakeFromEnd": 4,
+        "resourceGroupNamePart1": "[take(resourceGroup().name , 5)]",
+        "resourceGroupNamePart2": "[skip(resourceGroup().name, sub(variables('resourceGroupLen'),variables('charToTakeFromEnd')))]",
+        "resourceGroupName": "[concat(variables('resourceGroupNamePart1'),variables('resourceGroupNamePart2'))]",
+        "resourcePrefix1": "[replace(variables('resourceGroupName'),'-','')]",
+        "resourcePrefix2": "[replace(variables('resourcePrefix1'),variables('openParenthesis'),'')]",
+        "resourcePrefix3": "[replace(variables('resourcePrefix2'),'.','')]",
+        "resourcePrefix4": "[replace(variables('resourcePrefix3'),variables('closeParenthesis'),'')]",
+        "resourcePrefix5": "[replace(variables('resourcePrefix4'),'_','')]",
+        "resourceGroupName2": "[toLower(variables('resourcePrefix5'))]",
+        "storageAccountName": "[concat(variables('resourceGroupName2'),'blob')]",
+        "inputContainer":"input",
+        "inputArchiveContainer":"inputarchive",
+        "output":"output",
+        "outputArchiveContainer":"outputarchive",
+        "dataFactoryName": "[concat(variables('resourceGroupName2'),'factory')]",
+        "azureStorageLinkedServiceName":"azureStorageLinkedService",
+        "batchLinkedServiceName":"batchLinkedService",
+        "sqlLinkedServiceName":"sqlLinkedService",
+        "onDemandHDInsightLinkedServiceName":"onDemandSparkService",
+        "datasetBlobWebLog":"webLog",
+        "datasetTableWebLogTable":"webLogTable",
+        "datasetInputArchive": "inputArchive",
+        "datasetInput": "input",
+        "datasetOutput" : "output",
+        "datasetOutputArchive": "outputArchive",
+        "serverName": "[concat(variables('resourceGroupName2'),'svr')]",
+        "sqlDb": "logdb",
+        "batchAccountName": "[concat(variables('resourceGroupName2'),'batch')]",
+        "batchPoolName": "armpool",
+        "sparkClusterName": "[concat(variables('resourceGroupName2'),'spark')]",
+        "sparkUserName": "admin",
+        "sparkSSHUserName": "sshuser",
+        "password":"Pass@Word01",
+        "pythonSriptPath":"script/pythonscripts",
+        "webLogCleanSriptName": "cleanLogHardCoded.py",
+        "customActivityCreateSQLTablePath": "script/CustomActivitySQLTable",
+        "customActivityDeleteBlobPath":"script/CustomDeleteActivity",
+        "teAzureStorageLinkedServiceName": "teStorageAccount",
+        "teStorageAccountName":"armtestte",
+        "teStorageAccountKey" : "jWxl/P7uqQRANZIV6gNCdUD+GGP6m21wIE28iRLrJrMzQK5dZ3ARV0VK97MO7oeSYiONfL3AeCB7U4/M2+kzCA=="
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountName')]",
+            "apiVersion": "2015-06-15",
+            "location": "[parameters('location')]",
+            "tags": {
+                "displayName": "[variables('storageAccountName')]"
+            },
+            "properties": {
+                "accountType": "Standard_LRS"
+            },
+            "resources":[
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', variables('inputContainer'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+                    ]                        
+                },
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', variables('inputArchiveContainer'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+                    ]                        
+                },
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', variables('output'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"                        
+                    ]                        
+                },
+                {
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-03-01-preview",
+                    "name": "[concat('default/', variables('outputArchiveContainer'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+                    ]                        
+                }
+            ]
+        },
+        {
+            "apiVersion": "2014-04-01-preview",
+            "name": "[variables('serverName')]",
+            "type": "Microsoft.Sql/servers",
+            "location": "[parameters('location')]",
+            "tags": {
+                "displayName": "[variables('serverName')]"
+            },
+            "properties": {
+                "administratorLogin": "[parameters('sqlUserName')]",
+                "administratorLoginPassword": "[parameters('sqlPassword')]"
+            },
+            "resources": [
+                {
+                    "type": "databases",
+                    "name": "[variables('sqlDb')]",
+                    "apiVersion": "2014-04-01-preview",
+                    "location": "[parameters('location')]",
+                    "tags": {
+                        "displayName": "[variables('sqlDb')]"
+                    },
+                    "dependsOn": [
+                        "[variables('serverName')]"
+                    ],
+                    "properties": {
+                        "collation": "SQL_Latin1_General_CP1_CI_AS",
+                        "edition": "Basic",
+                        "maxSizeBytes": "1073741824",
+                        "requestedServiceObjectiveName": "Basic"
+                    }
+                },
+                {
+                    "apiVersion": "2014-04-01-preview",
+                    "dependsOn": [
+                        "[variables('serverName')]"
+                    ],
+                    "location": "[parameters('location')]",
+                    "name": "AllowAllWindowsAzureIps",
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "0.0.0.0"
+                    },
+                    "type": "firewallrules"
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Batch/batchAccounts",
+            "name": "[variables('batchAccountName')]",
+            "apiVersion": "2017-09-01",
+            "location": "[parameters('location')]",
+            "scale": null,
+            "properties":{
+                "autoStorage":{
+                    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+                },
+                "poolAllocationMode":"BatchService"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]"
+            ],
+            "resources": [
+                {
+                    "type": "pools",
+                    "name":"[variables('batchPoolName')]",
+                    "apiVersion": "2017-09-01",
+                    "scale": null,
+                    "properties":{
+                        "displayName": "[variables('batchPoolName')]",
+                        "vmSize": "STANDARD_D12_V2",
+                        "interNodeCommunication": "Disabled",
+                        "maxTasksPerNode": 1,
+                        "taskSchedulingPolicy": {
+                            "nodeFillType": "Spread"
+                        },
+                        "deploymentConfiguration": {
+                            "cloudServiceConfiguration": {
+                                "osFamily": "5",
+                                "targetOSVersion": "*",
+                                "currentOSVersion": "*"
+                            }
+                        },
+                        "scaleSettings": {
+                            "fixedScale": {
+                                "targetDedicatedNodes": 1,
+                                "targetLowPriorityNodes": 0,
+                                "resizeTimeout": "PT15M"
+                            }
+                        }
+                    },
+                    "dependsOn":[
+                        "[resourceId('Microsoft.Batch/batchAccounts', variables('batchAccountName'))]"
+                    ]
+
+                }
+            ]
+
+        },
+        {
+            "name": "[variables('dataFactoryName')]",
+            "apiVersion": "2017-09-01-preview",
+            "type": "Microsoft.DataFactory/factories",
+            "location":"[parameters('location')]",
+            "properties":{
+                "loggingStorageAccountName": "[variables('storageAccountName')]",
+                "loggingStorageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName')),providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).keys[0].value]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts',variables('storageAccountName'))]",
+                "[resourceId('Microsoft.Batch/batchAccounts',variables('batchAccountName'))]",
+                "[resourceId('Microsoft.Sql/servers',variables('serverName'))]",
+                "[resourceId('Microsoft.Sql/servers/databases',variables('serverName'),variables('sqlDb'))]",
+                "[resourceId('Microsoft.Batch/batchAccounts/pools',variables('batchAccountName'),variables('batchPoolName'))]"
+            ],
+            "resources":[
+                {
+                    "type": "linkedservices",
+                    "name": "[variables('azureStorageLinkedServiceName')]",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "type": "AzureBlobStorage",
+                        "typeProperties": {
+                            "connectionString": {
+                                "value": "[Concat('DefaultEndpointsProtocol=https;AccountName=',variables('StorageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName')), providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).keys[0].value)]",
+                                "type": "SecureString"
+                            }
+                        }
+                    },
+                    "dependsOn":[
+                        "[variables('dataFactoryName')]"
+                    ]
+                },
+                {
+                    "type": "linkedservices",
+                    "name": "[variables('teAzureStorageLinkedServiceName')]",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "type": "AzureBlobStorage",
+                        "typeProperties": {
+                            "connectionString": {
+                                "value": "[Concat('DefaultEndpointsProtocol=https;AccountName=',variables('teStorageAccountName'),';AccountKey=',variables('teStorageAccountKey'))]",
+                                "type": "SecureString"
+                            }
+                        }
+                    },
+                    "dependsOn":[
+                        "[variables('dataFactoryName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('batchLinkedServiceName')]",
+                    "type": "linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "type": "AzureBatch",
+                        "typeProperties": {
+                            "accountName": "[variables('batchAccountName')]",
+                            "accessKey": {
+                                "type": "SecureString",
+                                "value": "[listKeys(resourceId('Microsoft.Batch/batchAccounts', variables('batchAccountName')), '2017-09-01').primary]"
+                            },
+                            "batchUri": "[concat('https://', variables('batchAccountName'), '.' , parameters('location'), '.batch.azure.com')]",
+                            "poolName": "[variables('batchPoolName')]",
+                            "linkedServiceName": {
+                                "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                                "type": "LinkedServiceReference"
+                            }
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('sqlLinkedServiceName')]",
+                    "type": "linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "type": "SqlServer",
+                        "typeProperties": {
+                            "connectionString": "[concat('Data Source=tcp:', reference(resourceId('Microsoft.Sql/servers', variables('serverName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('sqlDb'), ';User Id=', parameters('sqlUserName'), ';Password=', variables('password'), ';')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('onDemandHDInsightLinkedServiceName')]",
+                    "type": "linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "type": "HDInsightOnDemand",
+                        "typeProperties": {
+                            "clusterType": "spark",
+                            "clusterSize": 4,
+                            "timeToLive": "00:05:00",
+                            "version": "3.6",
+                            "hostSubscriptionId": "[subscription().subscriptionId]",
+                            "clusterResourceGroup": "[resourceGroup().name]",
+                            "servicePrincipalId": "[parameters('servicePrincipalId')]",
+                            "tenant": "[subscription().tenantId]",
+                            "clusterNamePrefix": "",
+                            "clusterUserName" : "[variables('sparkUserName')]",
+                            "clusterSshUserName": "[variables('sparkSSHUserName')]",
+                            "clusterPassword": {
+                                "type": "SecureString",
+                                "value": "[variables('password')]"
+                            },
+                            "clusterSshPassword": {
+                                "type": "SecureString",
+                                "value": "[variables('password')]"
+                            },
+                            "sparkVersion": "",
+                            "servicePrincipalKey": {
+                                "type": "SecureString",
+                                "value": "[parameters('servicePrincipalKey')]"
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                                "type": "LinkedServiceReference"
+                            },
+                            "headNodeSize": "",
+                            "dataNodeSize": "",
+                            "zookeeperNodeSize": ""
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetBlobWebLog')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "AzureBlob",
+                        "structure": [
+                            {
+                                "name": "ipAddress",
+                                "type": "String"
+                            },
+                            {
+                                "name": "userName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "logName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "dateTime",
+                                "type": "DateTime"
+                            },
+                            {
+                                "name": "timeZone",
+                                "type": "String"
+                            },
+                            {
+                                "name": "httpMethod",
+                                "type": "String"
+                            },
+                            {
+                                "name": "requestURl",
+                                "type": "String"
+                            },
+                            {
+                                "name": "httpProtocol",
+                                "type": "String"
+                            },
+                            {
+                                "name": "statusCode",
+                                "type": "String"
+                            },
+                            {
+                                "name": "bytes",
+                                "type": "Int64"
+                            },
+                            {
+                                "name": "referer",
+                                "type": "String"
+                            },
+                            {
+                                "name": "userAgent",
+                                "type": "String"
+                            },
+                            {
+                                "name": "fileName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "browser",
+                                "type": "String"
+                            },
+                            {
+                                "name": "os",
+                                "type": "String"
+                            },
+                            {
+                                "name": "source",
+                                "type": "String"
+                            }
+                        ],
+                        "typeProperties": {
+                            "format": {
+                                "type": "TextFormat",
+                                "columnDelimiter": "|",
+                                "rowDelimiter": "",
+                                "nullValue": "\\N",
+                                "treatEmptyAsNull": true,
+                                "skipLineCount": 0,
+                                "firstRowAsHeader": false
+                            },
+                            "fileName": "part*",
+                            "folderPath": "[variables('output')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetTableWebLogTable')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('sqlLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "SqlServerTable",
+                        "structure": [
+                            {
+                                "name": "ipAddress",
+                                "type": "String"
+                            },
+                            {
+                                "name": "userName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "logName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "dateTime",
+                                "type": "DateTime"
+                            },
+                            {
+                                "name": "timeZone",
+                                "type": "String"
+                            },
+                            {
+                                "name": "httpMethod",
+                                "type": "String"
+                            },
+                            {
+                                "name": "requestURl",
+                                "type": "String"
+                            },
+                            {
+                                "name": "httpProtocol",
+                                "type": "String"
+                            },
+                            {
+                                "name": "statusCode",
+                                "type": "String"
+                            },
+                            {
+                                "name": "bytes",
+                                "type": "Int64"
+                            },
+                            {
+                                "name": "referer",
+                                "type": "String"
+                            },
+                            {
+                                "name": "userAgent",
+                                "type": "String"
+                            },
+                            {
+                                "name": "fileName",
+                                "type": "String"
+                            },
+                            {
+                                "name": "browser",
+                                "type": "String"
+                            },
+                            {
+                                "name": "os",
+                                "type": "String"
+                            },
+                            {
+                                "name": "source",
+                                "type": "String"
+                            }
+                        ],
+                        "typeProperties": {
+                            "tableName": "[concat('[dbo].[', variables('datasetTableWebLogTable'),']')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('sqlLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetInputArchive')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "AzureBlob",
+                        "typeProperties": {
+                            "format": {
+                                "type": "TextFormat",
+                                "columnDelimiter": ",",
+                                "rowDelimiter": "",
+                                "nullValue": "\\N",
+                                "treatEmptyAsNull": true,
+                                "skipLineCount": 0,
+                                "firstRowAsHeader": false
+                            },
+                            "fileName": "",
+                            "folderPath": "[variables('inputArchiveContainer')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetInput')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "AzureBlob",
+                        "typeProperties": {
+                            "format": {
+                                "type": "TextFormat",
+                                "columnDelimiter": ",",
+                                "rowDelimiter": "",
+                                "nullValue": "\\N",
+                                "treatEmptyAsNull": true,
+                                "skipLineCount": 0,
+                                "firstRowAsHeader": false
+                            },
+                            "fileName": "*",
+                            "folderPath": "[variables('datasetInput')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetOutput')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "AzureBlob",
+                        "typeProperties": {
+                            "format": {
+                                "type": "TextFormat",
+                                "columnDelimiter": ",",
+                                "rowDelimiter": "",
+                                "nullValue": "\\N",
+                                "treatEmptyAsNull": true,
+                                "skipLineCount": 0,
+                                "firstRowAsHeader": false
+                            },
+                            "fileName": "part*",
+                            "folderPath": "[variables('output')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "[variables('datasetOutputArchive')]",
+                    "type": "datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "annotations": [],
+                        "type": "AzureBlob",
+                        "typeProperties": {
+                            "format": {
+                                "type": "TextFormat",
+                                "columnDelimiter": ",",
+                                "rowDelimiter": "",
+                                "nullValue": "\\N",
+                                "treatEmptyAsNull": true,
+                                "skipLineCount": 0,
+                                "firstRowAsHeader": false
+                            },
+                            "fileName": "",
+                            "folderPath": "[variables('outputArchiveContainer')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]"
+                    ]
+                },
+                {
+                    "name": "sparkLine",
+                    "type": "pipelines",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "activities": [
+                            {
+                                "name": "CleanWebLog",
+                                "type": "HDInsightSpark",
+                                "dependsOn": [
+                                    {
+                                        "activity": "CreateSQLTable",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "rootPath": "[variables('pythonSriptPath')]",
+                                    "entryFilePath": "[variables('webLogCleanSriptName')]",
+                                    "arguments": [
+                                        "[concat('--inputs=',variables('storageAccountName'),'|',variables('inputContainer'),'|',variables('output'))]"
+                                    ],
+                                    "getDebugInfo": "Always",
+                                    "sparkJobLinkedService": {
+                                        "referenceName": "[variables('teAzureStorageLinkedServiceName')]",
+                                        "type": "LinkedServiceReference"
+                                    }
+                                },
+                                "linkedServiceName": {
+                                    "referenceName": "[variables('onDemandHDInsightLinkedServiceName')]",
+                                    "type": "LinkedServiceReference"
+                                }
+                            },
+                            {
+                                "name": "CreateSQLTable",
+                                "type": "Custom",                                
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "command": "CustomActivitySQLTable.exe",
+                                    "resourceLinkedService": {
+                                        "referenceName": "[variables('teAzureStorageLinkedServiceName')]",
+                                        "type": "LinkedServiceReference"
+                                    },
+                                    "folderPath": "[variables('customActivityCreateSQLTablePath')]",
+                                    "extendedProperties": {
+                                        "SQLLinkedServiceName": "[variables('sqlLinkedServiceName')]"
+                                    },
+                                    "referenceObjects": {
+                                        "linkedServices": [
+                                            {
+                                                "referenceName": "[variables('sqlLinkedServiceName')]",
+                                                "type": "LinkedServiceReference"
+                                            }
+                                        ],
+                                        "datasets": []
+                                    }
+                                },
+                                "linkedServiceName": {
+                                    "referenceName": "[variables('batchLinkedServiceName')]",
+                                    "type": "LinkedServiceReference"
+                                }
+                            },
+                            {
+                                "name": "CopyToSQLDB",
+                                "type": "Copy",
+                                "dependsOn": [
+                                    {
+                                        "activity": "CleanWebLog",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "source": {
+                                        "type": "BlobSource",
+                                        "recursive": true
+                                    },
+                                    "sink": {
+                                        "type": "SqlSink",
+                                        "writeBatchSize": 10000
+                                    },
+                                    "enableStaging": false,
+                                    "dataIntegrationUnits": 0,
+                                    "translator": {
+                                        "type": "TabularTranslator",
+                                        "columnMappings": {
+                                            "ipAddress": "ipAddress",
+                                            "userName": "userName",
+                                            "logName": "logName",
+                                            "dateTime": "dateTime",
+                                            "timeZone": "timeZone",
+                                            "httpMethod": "httpMethod",
+                                            "requestURl": "requestURl",
+                                            "httpProtocol": "httpProtocol",
+                                            "statusCode": "statusCode",
+                                            "bytes": "bytes",
+                                            "referer": "referer",
+                                            "userAgent": "userAgent",
+                                            "fileName": "fileName",
+                                            "browser": "browser",
+                                            "os": "os",
+                                            "source": "source"
+                                        }
+                                    }
+                                },
+                                "inputs": [
+                                    {
+                                        "referenceName": "[variables('datasetBlobWebLog')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "referenceName": "[variables('datasetTableWebLogTable')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "ArchiveInputData",
+                                "type": "Copy",
+                                "dependsOn": [
+                                    {
+                                        "activity": "CopyToSQLDB",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "source": {
+                                        "type": "BlobSource",
+                                        "recursive": true
+                                    },
+                                    "sink": {
+                                        "type": "BlobSink"
+                                    },
+                                    "enableStaging": false,
+                                    "dataIntegrationUnits": 0
+                                },
+                                "inputs": [
+                                    {
+                                        "referenceName": "[variables('datasetInput')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "referenceName": "[variables('datasetInputArchive')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "CleanInputContainer",
+                                "type": "Custom",
+                                "dependsOn": [
+                                    {
+                                        "activity": "ArchiveInputData",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "command": "CustomDeleteActivity.exe",
+                                    "resourceLinkedService": {
+                                        "referenceName": "[variables('teAzureStorageLinkedServiceName')]",
+                                        "type": "LinkedServiceReference"
+                                    },
+                                    "folderPath": "[variables('customActivityDeleteBlobPath')]",
+                                    "extendedProperties": {
+                                        "InputContainer": "[variables('inputContainer')]",
+                                        "AzureBlobLinkedServiceName": "[variables('azureStorageLinkedServiceName')]"
+                                    },
+                                    "referenceObjects": {
+                                        "linkedServices": [
+                                            {
+                                                "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                                                "type": "LinkedServiceReference"
+                                            }
+                                        ],
+                                        "datasets": []
+                                    }
+                                },
+                                "linkedServiceName": {
+                                    "referenceName": "[variables('batchLinkedServiceName')]",
+                                    "type": "LinkedServiceReference"
+                                }
+                            },
+                            {
+                                "name": "ArchiveOutput",
+                                "type": "Copy",
+                                "dependsOn": [
+                                    {
+                                        "activity": "CleanInputContainer",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "source": {
+                                        "type": "BlobSource",
+                                        "recursive": true
+                                    },
+                                    "sink": {
+                                        "type": "BlobSink"
+                                    },
+                                    "enableStaging": false,
+                                    "dataIntegrationUnits": 0
+                                },
+                                "inputs": [
+                                    {
+                                        "referenceName": "[variables('datasetOutput')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "referenceName": "[variables('datasetOutputArchive')]",
+                                        "type": "DatasetReference",
+                                        "parameters": {}
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "CleanCurrentOutput",
+                                "type": "Custom",
+                                "dependsOn": [
+                                    {
+                                        "activity": "ArchiveOutput",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [],
+                                "typeProperties": {
+                                    "command": "CustomDeleteActivity.exe",
+                                    "resourceLinkedService": {
+                                        "referenceName": "[variables('teAzureStorageLinkedServiceName')]",
+                                        "type": "LinkedServiceReference"
+                                    },
+                                    "folderPath": "[variables('customActivityDeleteBlobPath')]",
+                                    "extendedProperties": {
+                                        "InputContainer": "[variables('output')]",
+                                        "AzureBlobLinkedServiceName": "[variables('azureStorageLinkedServiceName')]"
+                                    },
+                                    "referenceObjects": {
+                                        "linkedServices": [
+                                            {
+                                                "referenceName": "[variables('azureStorageLinkedServiceName')]",
+                                                "type": "LinkedServiceReference"
+                                            }
+                                        ],
+                                        "datasets": []
+                                    }
+                                },
+                                "linkedServiceName": {
+                                    "referenceName": "[variables('batchLinkedServiceName')]",
+                                    "type": "LinkedServiceReference"
+                                }
+                            }
+                        ],
+                        "annotations": []
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "[variables('azureStorageLinkedServiceName')]",
+                        "[variables('onDemandHDInsightLinkedServiceName')]",
+                        "[variables('sqlLinkedServiceName')]",
+                        "[variables('batchLinkedServiceName')]",
+                        "[variables('datasetBlobWebLog')]",
+                        "[variables('datasetInput')]",
+                        "[variables('datasetInputArchive')]",
+                        "[variables('datasetOutput')]",
+                        "[variables('datasetOutputArchive')]",
+                        "[variables('datasetTableWebLogTable')]"
+                    ]
+                },
+                {
+                    "name": "PipelineTrigger",
+                    "type": "triggers",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [],
+                        "runtimeState": "Started",
+                        "pipelines": [
+                            {
+                                "pipelineReference": {
+                                    "referenceName": "sparkLine",
+                                    "type": "PipelineReference"
+                                },
+                                "parameters": {}
+                            }
+                        ],
+                        "type": "ScheduleTrigger",
+                        "typeProperties": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1,
+                                "startTime": "2018-10-10T00:00:00.000Z",
+                                "timeZone": "UTC",
+                                "schedule": {
+                                    "minutes": [
+                                        0
+                                    ],
+                                    "hours": [
+                                        1
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "dependsOn": [
+                        "[variables('dataFactoryName')]",
+                        "sparkLine"
+                    ]
+                }
+            ]
+        }
+    ],
+    "outputs": {}
+}
