@@ -1,4 +1,4 @@
-Azure ARM One Click Deployment
+Web Log Analytics
 
 ====================
 
