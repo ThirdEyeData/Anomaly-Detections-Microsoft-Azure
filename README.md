@@ -3,8 +3,8 @@
 ## Description
 This project processes **Apache compliant web log files** to derive inferences hidden in web log data.
 This project cleans, structures web log data and visualizes it. <br/><br/>
-![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/ServerTraffic.JPG)
-[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
+![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/ServerTraffic.JPG)
+
 ## Architecture
 This project has developed data transformation system using Microsoft Azure technologies.
 Following is the list of technologies used in this project:
@@ -15,7 +15,7 @@ Following is the list of technologies used in this project:
 5. **Batch Account**: For execution of custom ADF activities
 6. **Power BI**: Data visualization
 
-![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/Architecture%20Diagram.JPG)
+![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Architecture%20Diagram.JPG)
 
 User will drop or design system which can drop web log files to particular container in Azure Storage Account provisioned by this deployment at at regular intervals. In the backend Azure Data Factory will pickup these files at the same frequency and perform operations on it to clean and structure the data. Structured data will be persisted in SQL DB / SQL DW. This structured data will be visualized using Power BI.
 
@@ -36,9 +36,24 @@ Create Azure AD application and obtain App id and Authentication key by followin
 1. Visit Azure Portal and open resource group provisioned through this deployment.
 2. Open Azure Data Factory instance inside the resource group.
 3. Click **Author and Monitor** button present on Azure Data Factory overview blade to open ADF studio.
-4. Select **Author** tab on ADF studio.  <br/>![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/ADF01.JPG)
+4. Select **Author** tab on ADF studio.  <br/>![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/ADF01.JPG)
 5. Press **Triggers** button present at the bottom of ADF Studio.
 6. Press **Edit** button present on **PipelineTrigger**.
-7. On Edit Trigger pane set **Start Date**, **Recurrence** settings and check **Activated** checkbox.<br/>![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/ADF02.JPG)
+7. On Edit Trigger pane set **Start Date**, **Recurrence** settings and check **Activated** checkbox.<br/>![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/ADF02.JPG)
 8. Press **Finish** button to finalize edits.
-9. Press **Publish All** button present on top of ADF studio to activate data factory. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/ADF03.JPG)
+9. Press **Publish All** button present on top of ADF studio to activate data factory. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/ADF03.JPG)
+
+### Step 04: Make a data source connection in Power BI
+1. Open Power BI Desktop file **ThirdEye - ARM Template-Pattern 1 Insights.pbix** placed in current repository, on your local machine.
+2. Hit **Home > Edit Queries** button present on menu bar. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2001.JPG)
+3. On Query Editor window, press menu **Home > Data source settings**. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2002.JPG)
+4. Select data source present on Data source settings window and press button **Change Source** present at the bottom of window. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2003.JPG)
+5. On SQL Server database window, enter the name of SQL server present in Azure resource group provisioned by this deployment. Press **Ok** button at the bottom.<br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2004.JPG)
+6. Again select data source present on Data source settings window and press button **Edit Permissions** present at the bottom of window. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2005.JPG)
+7. On Edit Permissions window, press **Edit** button. <br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2006.JPG)
+8. On next popup window, ensure **Database** tab is selected and enter credentials of SQL server supplied while initiating this deployment. Press **Save** button to save credentials.<br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2007.JPG)
+9. Close all popup windows, press **Close & Apply** button present on menu bar of Query Editor window to finalize change in database connection.<br/> ![](https://github.com/ThirdEyeData/OutlierDetection/blob/master/WikiImages/Power%20BI%2008.JPG).
+<br/>Now have a look on all visuals present on Power BI file.
+
+## Power BI Visuals
+Power BI Visuals are described in **ThirdEye - Web Log Analytics - Power BI Visuals.PPTX** file, present in this repository.
