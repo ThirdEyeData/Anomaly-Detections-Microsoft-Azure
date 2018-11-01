@@ -1,4 +1,4 @@
-# Web Log Analytics
+# Outlier Detection in Web Logs
 
 ## Description
 This project processes **Apache compliant web log files** to derive inferences hidden in web log data.
