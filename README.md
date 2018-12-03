@@ -13,7 +13,7 @@ Outlier Detections modules are inbuilt into the solution, and default machine le
 Following are some data visualizations derived from web server log data:<br/>
 ![](https://github.com/ThirdEyeData/Outlier_Detections_Weblogs_Analytics/blob/master/ThirdEye%20-%20Web%20Log%20Analytics%20-%20Power%20BI%20Visuals/Slide2.PNG)
 <br/>
-![](https://github.com/ThirdEyeData/Outlier_Detections_Weblogs_Analytics/blob/master/ThirdEye%20-%20Web%20Log%20Analytics%20-%20Power%20BI%20Visuals/Slide3.PNG)
+![](https://github.com/ThirdEyeData/Anomaly-Detections-Microsoft-Azure/blob/master/ThirdEye%20-%20Web%20Log%20Analytics%20-%20Power%20BI%20Visuals/Slide3.PNG)
 <br/>
 ![](https://github.com/ThirdEyeData/Outlier_Detections_Weblogs_Analytics/blob/master/ThirdEye%20-%20Web%20Log%20Analytics%20-%20Power%20BI%20Visuals/Slide4.PNG)
 <br/>
