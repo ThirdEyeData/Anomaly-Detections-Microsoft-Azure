@@ -1,4 +1,4 @@
-# Outlier Detection in Web Server Logs
+# Anomaly Detection in Web Server Logs
 
 ## Description
 ThirdEye’s one-click deployable solution for Outlier Detection in web server logs is generally available on the Microsoft Azure cloud. The solution works off the web server logs, parses and processes it to get it ready to generate actionable insights. 
